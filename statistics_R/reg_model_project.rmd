@@ -1,0 +1,394 @@
+---
+title: "Modeling and prediction for movies"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+library(GGally)
+```
+
+### Load data
+
+
+```{r load-data}
+load("movies.Rdata")
+```
+
+
+
+* * *
+
+## Part 1: Data
+
+Random sampling was used, but the sample sources are only 2 sites:  Rotten Tomatoes and IMDB<BR>
+Thus, this research result could be generalized to <b> a mainstream cinema production industry</b>, <BR>
+coming under the radar of those two mainstream movie data concentration sites.<BR>
+<BR>
+Many foreign/localized/niche/specific/amateur target audience films are not represented by this sample.<BR>
+<BR>
+Causality is out of scope. This is not a random assignment research with the control group.<BR>
+* * *
+
+## Part 2: Research question
+
+What makes a movie popular?<BR>
+Define what is "popular" in terms of available data.<BR>
+Using linear regression analysis assess available variables which could be used to predict a movie popularity.<BR>
+
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+General data observations:<BR>
+
+```{r}
+dim(movies)
+```
+
+```{r}
+names(movies)
+```
+
+### What response variable to consider?
+
+Examine potential response variables, select ones that could be used to effectively assess a movie popularity.
+<br>
+
+Construct a general function that allows to inspect the response variable and its presence in the sample
+<br>
+
+```{r}
+assess_variable<- function(assessed_variable){
+  data_set_size<-0   
+  present<-0
+  for (i in assessed_variable){
+    if(!is.na(i)){
+      present = present+1
+    }
+    data_set_size = data_set_size+1
+  }
+  
+  subcats = unique(assessed_variable)
+  uniquenames=length(subcats)
+  assessment <- list("num_subcats" = uniquenames, "subcats" = subcats , "coverage" = present/data_set_size )
+  
+}
+
+
+
+```
+
+imdb_rating
+
+
+```{r}
+imdb_rating_assessment = assess_variable(movies$imdb_rating)
+imdb_rating_assessment
+```
+audience_rating
+
+```{r}
+audience_rating_assessment = assess_variable(movies$audience_rating)
+audience_rating_assessment
+```
+
+
+audience_score
+
+
+```{r}
+audience_score_assessment = assess_variable(movies$audience_score)
+audience_score_assessment
+```
+
+
+### Create combined_score (to take into account IMDB and RT scores together) 
+
+```{r}
+movies<-movies%>%
+  mutate(combined_score=(imdb_rating*10+audience_score)/2)
+```
+
+```{r}
+combined_score_assessment = assess_variable(movies$combined_score)
+combined_score_assessment
+```
+
+
+
+* * *
+
+## Part 4: Modeling
+
+Develop a linear regression model <BR>
+<b>to predict a numerical variable (combined_score)</b> in the dataset. 
+<BR>
+
+Will analyze variables one by one using conditions for the linear regression check, <BR>
+
+I will categorize variables as:
+<BR>
+-fit
+<BR>
+-moderately fit
+<BR>
+-unfit
+<BR>
+
+Then, I will use forward selection with the fit and moderately fit variables
+<BR>
+
+
+### Runtime
+
+```{r}
+
+#data pre-processing
+mean_runtime<-movies%>%
+  filter(!is.na(runtime))%>%
+  summarise(mean(runtime))
+
+movies<-movies%>%
+  mutate(runtime_norm=ifelse(!is.na(runtime), runtime, as.numeric(mean_runtime)))
+
+#a scatter plot
+plot_ss(x=runtime_norm, y=combined_score, data=movies)
+
+#model for 1 variable
+m_runtime <- lm(combined_score ~ runtime_norm, data = movies)
+summary(m_runtime)
+
+#linear relation check
+plot(m_runtime$residuals, movies$runtime_norm)
+
+#nearly normal residuals check
+hist(m_runtime$residuals)
+qqnorm(m_runtime$residuals)
+qqline(m_runtime$residuals)
+
+#constant variability check
+plot(m_runtime$residuals ~ m_runtime$fitted.values)
+plot(abs(m_runtime$residuals) ~ m_runtime$fitted.values)
+
+
+#independent observations check
+plot(m_runtime$residuals)
+
+```
+<BR>
+Conclusion: moderately fit to unfit, <BR>
+left skewed residuals distribution and not convincing linearity<BR>
+
+
+### critics_score
+
+```{r}
+critics_score_assessment = assess_variable(movies$critics_score)
+critics_score_assessment
+```
+
+
+```{r}
+
+#a scatter plot
+plot_ss(x=critics_score, y=combined_score, data=movies)
+
+#model for 1 variable
+m_critics_score <- lm(combined_score ~ critics_score, data = movies)
+summary(m_critics_score)
+
+#linear relation check
+plot(m_critics_score$residuals, movies$critics_score)
+
+#nearly normal residuals check
+hist(m_critics_score$residuals)
+qqnorm(m_critics_score$residuals)
+qqline(m_critics_score$residuals)
+
+#constant variability check
+plot(m_critics_score$residuals ~ m_critics_score$fitted.values)
+plot(abs(m_critics_score$residuals) ~ m_critics_score$fitted.values)
+
+
+#independent observations check
+plot(m_critics_score$residuals)
+
+```
+
+<BR>
+Conclusion: fit, <BR>
+normal residuals, fair linearity, constant variability<BR>
+
+
+### best_pic_nom
+
+```{r}
+
+#model for 1 variable
+
+best_pic_nom_assessed = assess_variable(movies$best_pic_nom)
+best_pic_nom_assessed
+m_best_pic_nom <- lm(combined_score ~ best_pic_nom, data = movies)
+summary(m_best_pic_nom)
+
+```
+<BR>
+Conclusion: unfit, <BR>
+very low R^2 (explained variability)
+
+
+
+### Combination of critics_score and best_pic_nom to ensure previous conclusion
+```{r}
+
+m_best_pic_nom_critics <- lm(combined_score ~ critics_score, best_pic_nom, data = movies)
+summary(m_best_pic_nom_critics)
+
+```
+<BR>
+Conclusion:<BR>
+R^2=1, an over-fit sign, rejecting this variant<BR>
+
+
+
+### best_pic_win
+
+
+
+```{r}
+best_pic_win_assessed = assess_variable(movies$best_pic_win)
+best_pic_win_assessed
+m_best_pic_win <- lm(combined_score ~ best_pic_win, data = movies)
+summary(m_best_pic_win)
+```
+<BR>
+Conclusion: unfit, <BR>
+very low R^2 (explained variability)
+
+
+
+### Combination of critics_score and best_pic_win to ensure previous conclusion
+
+```{r}
+m_best_pic_win_critics <- lm(combined_score ~ critics_score, best_pic_win, data = movies)
+summary(m_best_pic_win_critics)
+```
+<BR>
+Conclusion:<BR>
+R^2=1, an over-fit sign, rejecting this variant<BR>
+
+
+### best_dir_win
+
+
+```{r}
+best_dir_win_assessed = assess_variable(movies$best_dir_win)
+best_dir_win_assessed
+m_best_dir_win <- lm(combined_score ~ best_dir_win, data = movies)
+summary(m_best_dir_win)
+```
+<BR>
+Conclusion: unfit, <BR>
+very low R^2 (explained variability)
+
+
+### Combination of critics_score and best_dir_win to ensure previous conclusion
+
+```{r}
+m_best_dir_win_critics <- lm(combined_score ~ critics_score, best_dir_win, data = movies)
+summary(m_best_dir_win_critics)
+```
+<BR>
+Conclusion:<BR>
+R^2=1, an over-fit sign, rejecting this variant<BR>
+
+
+### Alalyze multi-leveled categories (more than 10 levels)
+
+Figure whether different categorical vars could serve as predictors for that sample
+```{r}
+length(unique(movies$director))
+length(unique(movies$actor1))
+length(unique(movies$actor2))
+length(unique(movies$actor3))
+length(unique(movies$actor4))
+length(unique(movies$actor5))
+```
+<BR>
+Conclusion:<BR>
+Those categories (director, actor1-5) are unlikely to produce reliable prediction, cause their unique values number is<BR>
+very high (relatively to the sample size) and thus they could not be used.<BR>
+<BR>
+
+
+Unfortunately this course did not handle the subject of over-fit<BR>
+And most of the categorical variables here lead to over-fit (R^2==1)<BR>
+(over-fit, that will show itself on population scale)<BR>
+
+I leave only critics_score cause it is answering all the conditions for the linear regression<BR>
+and provides 56% of the explained variability without the risk of overfit.
+
+
+* * *
+
+## Part 5: Prediction
+
+```{r}
+
+predictions<-vector("numeric", length(10))
+critics_scores<-vector("numeric", length(10))
+
+for(i in 1:10){
+   new_movie <-data.frame(year="2016", critics_score=i*10)
+   prediction=predict(m_critics_score,new_movie)
+   interval_prediction=predict(m_critics_score, new_movie, interval = "prediction", level = 0.95)
+   print(interval_prediction)
+   predictions[i]<-prediction
+   critics_scores[i]<-i*10
+}
+
+plot(x=critics_scores, y=predictions)
+
+```
+
+Above you can observe predictions with CI 95% <BR>
+They looks logically correct (for increased critics_score)
+
+
+
+* * *
+
+## Part 6: Conclusion
+
+I found only one strong and reliable predictor:critics_score <BR>
+The rest - categorical predictors  - are doubtful, while they lead to model over-fit<BR>
+This over-fit will be sensible if real (population) data used for testing the model.<BR>
+(This subject was not explained in the course, unfortunately)<BR>
+
+With CI 95% my model reliably predicts the score
+(I created combined score from IMDB and RT scores on the way)
+
+
+
+
+
+
+
+
+
+
+
+
+

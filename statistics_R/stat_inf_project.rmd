@@ -1,0 +1,524 @@
+---
+title: "Statistical inference with the GSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+```
+
+### Load data
+
+
+
+```{r load-data}
+load("gss.Rdata")
+```
+
+
+
+* * *
+
+## Part 1: Data
+
+According to the survey documentation,
+there are different data collection methods, used throughout many years.
+Stratification and selection methods are different in different years.
+Thus, it is not a 'classical simple random sampling'.
+
+They tell:
+
+"In general, the GSS samples closely resemble distributions reported in the Census and other authoritative sources. Because of
+survey non-response, sampling variation, and various other factors the GSS sample does deviate from known population figures for
+some variables. The GSS does not calculate any post-stratification weights to adjust for such differences."
+
+## My conclusion:
+
+Generalization: Limited , considering selection methods, bias and under/over represented categories in different years 
+
+Causality: Impossible, while no experiment with the control group has been conducted 
+
+Note:
+
+For the purpose of this test we should assume that the sampling data does indeed reliably represents a certain population. 
+
+
+* * *
+
+## Part 2: Research question
+The research will analyze the possible dependency between major party affiliation and high-income.
+Is it true that some parties attract more high-income (subjectively rich) people than other parties in USA?
+
+Spoiler: yes, it seems to be true and I really happy to find this out...
+* * *
+
+## Part 3: Exploratory data analysis
+
+
+Observe how many observations collected per year to get a sense of the size of the sample
+
+```{r}
+unique(gss$year)
+
+gss%>%
+  group_by(year)%>%
+  summarise(people=n())
+```
+
+<br><b>
+Interpretation:
+Looks like each year represented by the significant number of samples</b>
+<br>
+
+### Note: This research will set a variable <b>high_income_mark</b>=$60K
+### People earning 60K and more will be considered "high income" or "rich"
+
+
+### I have to check that S-F conditions will be satisfied for my particular research
+
+<b>
+Inspecting S-F condition for proportion relative analysis (considering income/party)
+This code will fail the entire operation, if the condition (S,F >= 10) fails
+</b>
+
+
+```{r}
+high_income_mark<-60000
+
+republicans<-gss%>%
+  group_by(year)%>%
+  filter((partyid == "Strong Republican" |  partyid == "Not Str Republican") & !is.na(coninc) )%>%
+  select(year, partyid, coninc) %>%
+  summarise(low_income=sum(coninc < high_income_mark), 
+            high_income=sum(coninc >= high_income_mark))
+
+others<-gss%>%
+  group_by(year)%>%
+  filter((partyid != "Strong Republican" &  partyid != "Not Str Republican") & !is.na(coninc) )%>%
+  select(year, partyid, coninc) %>%
+  summarise(low_income=sum(coninc < high_income_mark), 
+            high_income=sum(coninc >= high_income_mark))
+
+#warn and stop if S-F check fails
+if(!all(others$low_income >= 10, others$high_income >= 10, republicans$low_income >= 10, republicans$high_income >= 10)){
+  warning("S-F condition has not been met!")
+  stop()
+}
+
+democrats<-gss%>%
+  group_by(year)%>%
+  filter((partyid == "Strong Democrat" |  partyid == "Not Str Democrat") & !is.na(coninc) )%>%
+  select(year, partyid, coninc) %>%
+  summarise(low_income=sum(coninc < high_income_mark), 
+            high_income=sum(coninc >= high_income_mark))
+
+others<-gss%>%
+  group_by(year)%>%
+  filter((partyid != "Strong Democrat" &  partyid != "Not Str Democrat") & !is.na(coninc) )%>%
+  select(year, partyid, coninc) %>%
+  summarise(low_income=sum(coninc < high_income_mark), 
+            high_income=sum(coninc >= high_income_mark))
+
+#warn and stop if S-F check fails
+if(!all(others$low_income >= 10, others$high_income >= 10, democrats$low_income >= 10, democrats$high_income >= 10)){
+  warning("S-F condition has not been met!")
+  stop()
+}
+
+democrats
+
+
+```
+
+
+
+### High income Democrats proportion by year
+
+```{r}
+#Convert democrats income level to proportion from the total number of democrats
+democrats<-gss%>%
+  filter((partyid == "Strong Democrat" |  partyid == "Not Str Democrat") & !is.na(coninc) )%>%
+  mutate(high_income=ifelse(coninc >= high_income_mark,"high","low"))
+
+democrats_prop<-democrats%>%
+  group_by(year)%>%
+  summarise(high_inc_prop=sum(high_income=="high")/n())
+
+#Display democrats income level proportions by year
+ggplot(democrats_prop, aes(x=year, y = value, color = variable)) +
+    geom_line(aes(y = high_inc_prop, col = "high_inc_prop"))+
+    geom_point(aes(y = high_inc_prop, col = "high_inc_prop"))+
+    labs(title="Democrats proportion with high income by year")
+```
+
+
+<br><b>
+Interpretation for the sample:
+Proportion of democrats with high income grows</b>
+<br>
+
+
+```{r}
+#Convert democrats income level to proportion from the total number of democrats
+republicans<-gss%>%
+  filter((partyid == "Strong Republican" |  partyid == "Not Str Republican") & !is.na(coninc) )%>%
+  mutate(high_income=ifelse(coninc >= high_income_mark,"high","low"))
+
+republicans_prop<-republicans%>%
+  group_by(year)%>%
+  summarise(high_inc_prop=sum(high_income=="high")/n())
+
+#Display democrats income level proportions by year
+ggplot(republicans_prop, aes(x=year, y = value, color = variable)) +
+    geom_line(aes(y = high_inc_prop, col = "high_inc_prop"))+
+    geom_point(aes(y = high_inc_prop, col = "high_inc_prop"))+
+    labs(title="Republicans proportion with high income by year")
+```
+<br>
+<b>
+Interpretation for the sample:
+Proportion of republicans with high income grows</b>
+<br>
+
+
+### Lets see where is more pronounced high-income voters proportion  
+```{r}
+both_parties_income_rates<-merge(democrats_prop, republicans_prop, by = c("year", "year"),suffixes = c(".dem",".rep"))
+both_parties_income_rates
+
+#lets see all the ratio together while we 
+ggplot(both_parties_income_rates, aes(x=year, y = value, color = variable)) +
+    geom_line(aes(y = high_inc_prop.dem, col = "high_inc_prop.dem"))+
+    geom_point(aes(y = high_inc_prop.dem, col = "high_inc_prop.dem"))+
+    geom_line(aes(y = high_inc_prop.rep, col = "high_inc_prop.rep"))+
+    geom_point(aes(y = high_inc_prop.rep, col = "high_inc_prop.rep"))+
+    scale_y_continuous(breaks = round(seq(0, 0.8, by = 0.05),1))+
+    labs(title="Both parties income proportions by year")
+```
+<br>
+<b>
+Interpretation for the sample:
+Proportion of republicans with high income is always higher throughout all the years
+</b>
+<br>
+
+
+
+* * *
+
+## Part 4: Inference
+
+Note, there is no CI for Chi Square independence test
+<br>
+<b>So, this research will only include the hypothesis and Chi Square independence test</b>
+
+### Hypothesis Test (Chi-Squared independence test)
+
+<b>
+<br>
+H_0: There is no dependency between supporting one of two major parties and being rich (60k+ income) 
+<br>
+H_A: There is a dependency between supporting one of two major parties and being rich  (60k+ income) 
+<br>
+</b>
+
+Explanatory variable: party
+<br>
+Response variable:    income
+<br>
+
+Note: Though it is presumably a 'strange' dependency: 'particular party affiliation influences income',
+considering the absence of the experiment and a control group, 
+<b>no one can claim that there is ANY causality at all</b>,
+so, this direction of dependency has the same theoretical validity as an opposite direction:
+'income influences particular party affiliation'
+
+One may claim, that the same rich party members meet at the same golf clubs 
+and thus do create business connections and other conditions for income growth.
+
+So,put aside the 'chicken and eggs' issue, in this Hypothesis we only test
+<b>the general presence of dependency (rich<->party affiliation) and causality is out of the scope</b>.
+
+
+### Lets create unctions to compose chi-square tables for both parties
+
+```{r}
+
+
+filter_na_income_party <- function(year_param){
+  partisans_income<-gss%>%
+    filter(!is.na(coninc) & !is.na(partyid) & year==year_param)
+  partisans_income
+}
+
+get_chi_table_income<- function(partisans_income, party){
+    partisans_income<-partisans_income%>%
+    mutate(high_income=ifelse(coninc >= high_income_mark, "high","na"))
+    proportions_partisan<-partisans_income%>%
+      summarise(rich_partisan=sum(being_partisan==party & high_income=="high"),
+                rich_other=sum(being_partisan=="other" & high_income=="high"),
+                total_rich=sum(high_income=="high"),
+                not_rich_partisan=sum(being_partisan==party & high_income=="na"),
+                not_rich_other=sum(being_partisan=="other" & high_income=="na"),
+                total_not_rich=sum(high_income=="na"),
+                total_rep=sum(being_partisan==party),
+                total_other=sum(being_partisan=="other"),
+                total_all=n())
+    
+    chi_table <- matrix(c(proportions_partisan$rich_partisan, proportions_partisan$rich_other,proportions_partisan$total_rich, 
+                    proportions_partisan$not_rich_partisan, proportions_partisan$not_rich_other, proportions_partisan$total_not_rich,
+                    proportions_partisan$total_rep,proportions_partisan$total_other,proportions_partisan$total_all), ncol=3, byrow=TRUE)
+    colnames(chi_table) <- c(party,'other','total')
+    rownames(chi_table) <- c('rich','not_rich', 'total')
+    chi_table <- as.table(chi_table)
+    chi_table
+}
+
+
+
+get_chi_table_income_republicans <- function(year_param) {
+  partisans_income<-filter_na_income_party(year_param)
+  partisans_income<-partisans_income%>%
+    mutate(being_partisan=ifelse(partyid == "Strong Republican" |  partyid == "Not Str Republican","republican","other"))
+  get_chi_table_income(partisans_income,"republican")
+}
+
+get_chi_table_income_democrats <- function(year_param) {
+  partisans_income<-filter_na_income_party(year_param)
+  partisans_income<-partisans_income%>%
+    mutate(being_partisan=ifelse(partyid == "Strong Democrat" |  partyid == "Not Str Democrat","democrat","other"))
+  get_chi_table_income(partisans_income,"democrat")
+}
+
+
+```
+
+### Here you can see example Chi-Square tables for each party for 1 selected year
+
+```{r}
+#Example(chi-table construction by year):
+rep_income<-get_chi_table_income_republicans("1972")
+rep_income
+
+dem_income<-get_chi_table_income_democrats("1972")
+dem_income
+
+```
+
+### Lets create a function for p-value calculation 
+
+
+Note, returned is not only p-value, but a direction of discovered dependency:
+<br>
+If, for example, there is a positive correlation between party 
+affiliation and increased proportion of rich, it is direction=2.
+<br>
+The negative correlation produces direction 1.
+<br>
+Those directions we later need to construct visual presentation.
+<br>
+
+Note: This function also validates Chi-table population parameters
+<br>
+```{r}
+getDependencyPValue <- function(party_income) {
+  
+  totalRichProp    <- party_income[1,3]/party_income[3,3]
+  totalNotRichProp <- 1-totalRichProp
+  
+  
+  pop_rich_partisan        <- party_income[3,1]*totalRichProp
+  pop_not_reach_partisan   <- party_income[3,1]*totalNotRichProp
+  pop_rich_other           <- party_income[3,2]*totalRichProp
+  pop_not_rich_others      <- party_income[3,2]*totalNotRichProp
+  
+  
+  tol = 1e-5# tolerance level for floats comparison
+  
+  ##Lets check that calculated population numbers are fit
+  if(abs(pop_rich_partisan+pop_not_reach_partisan-party_income[3,1]) > tol){
+    warning("Failed to conctruct expected population of partisans")
+    stop()
+  }
+  if(abs(pop_rich_other+pop_not_rich_others-party_income[3,2]) > tol){
+    warning("Failed to conctruct expected population of others")
+    stop()
+  }
+  if(abs(pop_rich_partisan+pop_rich_other-party_income[1,3]) > tol){
+    warning("Failed to conctruct expected population of rich")
+    stop()
+  }
+  if(abs(pop_not_reach_partisan+pop_not_rich_others-party_income[2,3]) > tol){
+    warning("Failed to conctruct expected population of not rich")
+    stop()
+  }
+  
+  Chi2<-((party_income[1,1]-pop_rich_partisan)**2/pop_rich_partisan+
+       (party_income[2,1]-pop_not_reach_partisan)**2/pop_not_reach_partisan+ 
+       (party_income[1,2]-pop_rich_other)**2/pop_rich_other+
+       (party_income[2,2]-pop_not_rich_others)**2/pop_not_rich_others)  
+
+  DF=(2-1) * (2-1) # We always have 2 columns, 2 rows
+  p_value=pchisq(Chi2, DF, lower.tail = FALSE)
+  
+  #the direction of the disproportion in rich partisans in observed data
+  direction<-0 # by default there is no disproportion
+  if(party_income[1,1]/party_income[3,1]<party_income[1,2]/party_income[3,2]){
+      direction<-1 #partisans are less rich as all others
+  }else if(party_income[1,1]/party_income[3,1]>party_income[1,2]/party_income[3,2]){
+      direction<-2 #partisans are more rich as all others
+  }
+  
+  annual_party_result <- list("pvalue" = p_value, "direction" = direction)
+  return(annual_party_result) 
+  
+}
+
+```
+
+
+### Example run of the function for 1 particular party for 1 particular year
+
+```{r}
+party_income<-get_chi_table_income_republicans("2012")
+annual_party_result = getDependencyPValue(party_income)
+pvalue=annual_party_result$pvalue
+direction=annual_party_result$direction
+pvalue
+direction
+
+```
+<br>
+<b>
+Interpretation:
+For this year: 2012 p_value is << 0.05(H_o rejected), 
+direction is 2, republicans do have visibly (statistically) increased proportion of rich among their voters
+</b>
+
+
+### Lets prepare functions to run thus HT for all years for two parties
+
+```{r}
+
+years<-sort(unique(gss$year))
+getPartyInfo <- function(years, party) {
+  p_values<-vector("numeric", length(years))
+  directions<-vector("numeric", length(years))
+  index=0
+  for(year in years) {  
+      party_income
+      if(party=="democrats"){
+         party_income<-get_chi_table_income_democrats(year)
+      }else if(party=="republicans"){
+         party_income<-get_chi_table_income_republicans(year)
+      }
+      annual_party_result = getDependencyPValue(party_income)
+      pvalue=annual_party_result$pvalue
+      direction=annual_party_result$direction
+      p_values[index]<-pvalue
+      directions[index]<-direction
+      index <- index+1
+  }
+  party.info <- data.frame(years, p_values, directions)
+  party.info
+}
+
+dems.info = getPartyInfo(years,"democrats")
+reps.info = getPartyInfo(years,"republicans")
+
+```
+
+<br>
+<b>
+Interpretation: two summary tables above show p-value and direction for two parties</b>
+
+
+### Lets merge two parties together
+
+```{r}
+both_parties_chi_data<-merge(dems.info, reps.info, by = c("years", "years"),suffixes = c(".dem",".rep"))
+both_parties_chi_data
+```
+
+
+### Lets normalize values
+
+<b>
+1. p-values>0.05 converted to 0: no significance (no dependency found)
+<br>
+2. p-values go through the log scaling to better show them in the graph
+<br>
+3. Dependent on direction p-values changed to negative (direction=1) to show it better in the graph
+(In reality Chi Square distribution has no negative values, we know that!)
+<br>
+</b>
+
+```{r}
+
+both_parties_chi_data<-both_parties_chi_data%>% 
+  mutate(norm_dem_pvalue=ifelse(p_values.dem<0.05,log(p_values.dem),0))%>% 
+  mutate(norm_rep_pvalue=ifelse(p_values.rep<0.05,log(p_values.rep),0))
+
+both_parties_chi_data<-both_parties_chi_data%>% 
+  mutate(signed_norm_dem_pvalue=ifelse(directions.dem==2,-norm_dem_pvalue,ifelse(directions.dem==1,norm_dem_pvalue,0)))%>% 
+  mutate(signed_norm_rep_pvalue=ifelse(directions.rep==2,-norm_rep_pvalue,ifelse(directions.rep==1,norm_rep_pvalue,0)))
+
+both_parties_chi_data
+```
+
+
+
+```{r}
+ggplot(both_parties_chi_data, aes(x=years, y = value, color = variable)) +
+    geom_line(aes(y = signed_norm_dem_pvalue, col = "dem_rich_dependency"))+
+    geom_point(aes(y = signed_norm_dem_pvalue, col = "dem_rich_dependency"))+
+    geom_line(aes(y = signed_norm_rep_pvalue, col = "rep_rich_dependency"))+
+    geom_point(aes(y = signed_norm_rep_pvalue, col = "rep_rich_dependency"))+
+    scale_x_continuous(breaks = round(seq(years[1], years[length(years)], by = 1),1))+
+    labs(title="Both parties high income affiliation dependency")+
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+```
+<b>
+<br>
+Interpretation and conclusion:
+</b>
+<br>
+Proportion of rich among republicans is consistently high.(There is a dependency!)
+<br>
+Proportion of rich among democrats is consistently low (There is a dependency!)
+<br>
+In 2005 it was very much pronounced (George W. Bush was a President)
+<br>
+In 2012 both proportions become almost equal.
+<br>
+So, generally, for those years, we have visible tendency of rich voters to prefer Republicans
+<br>
+OR
+<br>
+Republicans to accommodate increased number of rich.
+<br>
+Democrats do have invert proportion of rich accommodation.
+<br>
+
+But: According to surveys published in very recent years, this tendency seems to be minimized now.
+<br>
+https://www.cnbc.com/2016/10/23/the-rich-vote-republican-maybe-not-this-time.html
+<br>
+(Unfortunately we do not have latest years in the data to prove that)
+
+
+
+
+
+

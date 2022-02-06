@@ -1,0 +1,699 @@
+---
+title: "Exploring the BRFSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+### Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+```
+
+### Load data
+
+```{r load-data}
+load("brfss2013.RData")
+```
+
+## Part 1: Data
+
+## 1. General assessment:
+
+## Generalization, is it possible?:
+
+Data sampling is random, but the methods (land phone/cellular)
+
+are prone to the coverage and non-response bias - that may
+
+compromise the representativeness of the sample.
+
+You can read about the research on this subject here:
+
+<https://pubmed.ncbi.nlm.nih.gov/20961872/>
+
+My conclusion: the sample could be used for generalization,
+
+but with the note that the coverage and non-response bias are present
+
+## Causality, is it available?:
+
+Specific, targeted experiment with control group is not conducted,
+
+so the causality link could not be established between research variables.
+
+At most we can conclude about a correlation between variables
+
+
+
+#### Before starting the asking research questions, I explore the data:
+
+#### Checking the frame shape (to see how many variables and rows we have):
+
+```{r eval = TRUE}
+dim(brfss2013)
+```
+
+#### Counting respondents by state to realize that states data is more or less representative
+
+```{r eval = TRUE}
+brfss2013 %>%
+  group_by(X_state) %>%
+  summarise(respondents_in_state_number=n()) %>%
+  arrange(respondents_in_state_number)
+```
+
+#### Concluding that states "0" and "80" are - sampling errors, excluding them
+
+```{r eval = TRUE}
+brfss2013 <- brfss2013 %>% filter(brfss2013$X_state != "0" & brfss2013$X_state != "80")
+```
+
+#### Checking that data remained is correct and includes only valid states or territories
+
+```{r eval = TRUE}
+brfss2013 %>%
+  group_by(X_state) %>%
+  summarise(respondents_in_state_number=n()) %>%
+  arrange(respondents_in_state_number)
+```
+
+#### Checking how different categories represented in the sample (Age):
+
+```{r eval = TRUE}
+ages<-brfss2013$X_ageg5yr
+ggplot(data = brfss2013, aes(y = ages)) +  geom_bar() + labs(title="distribution of age ranges of respondents")
+
+```
+<br>
+The plot above: ages represented fairly
+
+
+#### Checking how different categories represented in the sample (Employment status):
+
+```{r eval = TRUE}
+ggplot(data = brfss2013, aes(y = employ1)) +  geom_bar() + labs(title="employment status")
+
+```
+<br>
+The plot above: employment represented quite fairly
+
+#### Checking how different categories represented in the sample (Income):
+
+```{r eval = TRUE}
+ggplot(data = brfss2013, aes(y = income2)) +  geom_bar() + labs(title="income status")
+
+```
+
+<br>
+The plot above: income groups represented quite fairly
+
+#### Checking how different categories represented in the sample (Gender):
+
+```{r eval = TRUE}
+ggplot(data = brfss2013, aes(y = sex)) +  geom_bar() + labs(title="gender")
+
+```
+<br>
+The plot above: gender groups represented quite fairly
+
+
+#### Checking how different categories represented in the sample (Race):
+
+```{r eval = TRUE}
+ggplot(data = brfss2013, aes(y = rrclass2)) +  geom_bar() + labs(title="race") 
+
+```
+<br>
+The plot above: race groups are mostly - NA - not representative
+
+
+#### Checking how different categories represented in the sample (Martial Status):
+
+```{r eval = TRUE}
+ggplot(data = brfss2013, aes(y = marital)) +  geom_bar() + labs(title="martial status")
+
+```
+<br>
+The plot above: marital groups are quite representative
+
+
+## General observation, conclusion:
+
+The data sample looks like sufficiently representative
+
+Age, Gender, Employment, Income, Marital sub categories represented well.
+
+Race queries are mostly NA -
+
+so here we can not conclude we have an equal race representation
+
+(and so the bias could be present here)
+
+
+
+
+
+
+## Part 2: Research questions
+
+**Research question 1:**
+
+How severe and abrupt health accidents correlated with un/employment in the general population of USA?
+
+**Research question 2:**
+
+How severe and abrupt health accidents correlated with un/employment
+
+in the states differently affected by unemployment?
+
+**Research question 3:**
+
+What is the ratio of fully disabled to all unemployed in the states where unemployment is most/less pronounced?
+
+Note: In all 3 researches considered only two "severe and abrupt health accidents" :heart attack and stroke.
+
+------------------------------------------------------------------------
+
+## Part 3: Exploratory data analysis
+
+## Research question 1
+
+#### Q: How severe and abrupt health accidents correlated with un/employment in the general population of USA?
+
+<br>
+
+#### While all my questions are relevant for a standard employment age only I filter out all the people older than 64 y.o.
+
+```{r eval = TRUE}
+active_age<-subset(brfss2013, X_ageg5yr=="Age 18 to 24" 
+                   | X_ageg5yr=="Age 25 to 29" 
+                   | X_ageg5yr=="Age 30 to 34"
+                   | X_ageg5yr=="Age 35 to 39"
+                   | X_ageg5yr=="Age 40 to 44"
+                   | X_ageg5yr=="Age 45 to 49"
+                   | X_ageg5yr=="Age 50 to 54"
+                   | X_ageg5yr=="Age 55 to 59"
+                   | X_ageg5yr=="Age 60 to 64")
+```
+
+#### I leave only people with defined employment status
+#### and defined heart attack/stroke status:
+
+```{r eval = TRUE}
+active_age<-active_age %>% 
+  filter(!is.na(employ1))%>% 
+  filter(!is.na(cvdinfr4))%>%
+  filter(!is.na(cvdstrk3))
+
+```
+
+Explore affected population:
+
+```{r eval = TRUE}
+
+#Explore heart attack population
+active_age %>%
+  group_by(cvdinfr4) %>%
+  summarise(diagnozed_heart_attack=n()) %>%
+  arrange(diagnozed_heart_attack)
+
+#Explore stroke population
+active_age %>%
+  group_by(cvdstrk3) %>%
+  summarise(diagnozed_stroke=n()) %>%
+  arrange(diagnozed_stroke)
+
+```
+<br>
+The tables above: show numbers of diagnosed or not with relevant issues
+
+
+#### Separate affected population:
+
+```{r eval = TRUE}
+#Separate heart attack population 
+heart_attack_population<-active_age %>%
+  filter(cvdinfr4=="Yes") 
+  
+#Separate stroke population  
+stroke_population<-active_age %>%
+  filter(cvdstrk3=="Yes") 
+
+```
+
+#### Explore heart attack employment status:
+
+```{r eval = TRUE}
+ggplot(data = heart_attack_population, aes(y = employ1)) +  geom_bar() + labs(title="heart attack employment status")
+```
+<br>
+The plot above: shows employment categories of suffered heart attack
+
+
+#### Explore stroke employment status:
+
+```{r eval = TRUE}
+ggplot(data = stroke_population, aes(y = employ1)) +  geom_bar() + labs(title="stroke employment status")
+```
+The plot above: shows employment categories of suffered stroke
+
+
+#### Marking employed and unemployed in heart attack population:
+
+```{r eval = TRUE}
+heart_attack_population <- heart_attack_population %>%
+  mutate(heart_attack_unemployed = ifelse(employ1=="Unable to work" 
+                                           | employ1=="Out of work for 1 year or more"
+                                           | employ1=="Out of work for less than 1 year", 
+    "not_employed", 
+    "employed")
+    )
+
+```
+
+#### Explore comparative graph of unemployment in heart attack population:
+
+```{r eval = TRUE}
+ggplot(data = heart_attack_population, aes(y = heart_attack_unemployed)) +  geom_bar() + labs(title="heart attack employment status")
+```
+<br>
+The plot above: shows general employment status of suffered heart attack 
+
+
+#### Marking employed and unemployed in stroke population:
+
+```{r eval = TRUE}
+#marking employed and unemployed
+stroke_population <- stroke_population %>%
+  mutate(stroke_unemployed = ifelse(employ1=="Unable to work" 
+                                           | employ1=="Out of work for 1 year or more"
+                                           | employ1=="Out of work for less than 1 year", 
+    "not_employed", 
+    "employed")
+    )
+```
+
+#### Explore comparative graph of unemployment in stroke population:
+
+```{r eval = TRUE}
+ggplot(data = stroke_population, aes(y = stroke_unemployed)) +  geom_bar() + labs(title="stroke employment status")
+```
+<br>
+The plot above: shows general employment status of suffered stroke
+
+
+#### Create an additional column in general work age population
+
+```{r eval = TRUE}
+#marking employed and unemployed
+active_age <- active_age %>%
+  mutate(mark_unemployed = ifelse(employ1=="Unable to work" 
+                                           | employ1=="Out of work for 1 year or more"
+                                           | employ1=="Out of work for less than 1 year", 
+    "not_employed", 
+    "employed")
+    )
+
+```
+
+#### Explore comparative graph of unemployment in general population:
+
+```{r eval = TRUE}
+ggplot(data = active_age, aes(y = mark_unemployed)) +  geom_bar() + labs(title="gen. population employment status")
+```
+<br>
+The plot above: shows the general population employment status
+
+
+
+#### Displaying a comparative analysis of unemployment rate in:
+
+#### a)  general population
+
+#### b)  heart attack population
+
+#### c)  stroke population
+
+```{r eval = TRUE}
+eployment_ratio_gen_pop      <- round(sum(active_age$mark_unemployed == "employed") / sum(active_age$mark_unemployed == "not_employed"),3)
+
+eployment_ratio_heart_attack <- round(sum(heart_attack_population$heart_attack_unemployed == "employed") / sum(heart_attack_population$heart_attack_unemployed == "not_employed"),3)
+
+eployment_ratio_stroke       <- round(sum(stroke_population$stroke_unemployed == "employed") / sum(stroke_population$stroke_unemployed == "not_employed"),3)
+
+employment_rate = c(eployment_ratio_gen_pop, eployment_ratio_heart_attack, eployment_ratio_stroke)
+
+employment_rate_name = c('A. General Population', 'B. Heart Attack', 'C. Stroke')
+
+comparative_rate<- data.frame(employment_rate, employment_rate_name)
+
+ggplot(data = comparative_rate, aes(employment_rate_name, employment_rate, label=employment_rate)) +  geom_bar(stat='identity') + labs(title="Employment rates in population comparison") + geom_text(position=position_dodge(width=0.9), vjust=-0.25)
+
+
+
+```
+<br>
+The EDA 1 summary plot above shows: 
+the differences in employment rates of different populations -
+general, suffered heart attack and suffered stroke
+
+
+
+## Summary EDA 1:
+
+In general population the ratio of employed to unemployed is 5.16,
+
+in heart attack population it is 1.23
+
+and in stroke population it is 0.89
+
+That means almost half of the population affected by heart attack is not employed.
+
+More than a half of population affected by stroke is not employed.
+
+This is significantly different from the high employment rate of the population in general.
+
+## Research question 2:
+
+
+#### Q:
+
+#### How severe and abrupt health accidents correlated with un/employment
+
+#### in the states differently affected by unemployment?
+
+<br>
+
+
+#### Prepare a relevant data set with employment status available:
+
+```{r eval = TRUE}
+active_age<-subset(brfss2013, X_ageg5yr=="Age 18 to 24" 
+                   | X_ageg5yr=="Age 25 to 29" 
+                   | X_ageg5yr=="Age 30 to 34"
+                   | X_ageg5yr=="Age 35 to 39"
+                   | X_ageg5yr=="Age 40 to 44"
+                   | X_ageg5yr=="Age 45 to 49"
+                   | X_ageg5yr=="Age 50 to 54"
+                   | X_ageg5yr=="Age 55 to 59"
+                   | X_ageg5yr=="Age 60 to 64")
+
+#Leave only population with defined employment, heart attack and stroke status
+#(That does not mean they are sick, that means that status is defined)
+active_age <- active_age %>%
+  filter(!is.na(employ1))%>% 
+  filter(!is.na(cvdinfr4))%>%
+  filter(!is.na(cvdstrk3))
+```
+
+#### Add employment marking and sort States by unemployment rate:
+
+```{r eval = TRUE}
+active_age <- active_age %>%
+  mutate(mark_unemployed = ifelse(employ1=="Unable to work" 
+                                           | employ1=="Out of work for 1 year or more"
+                                           | employ1=="Out of work for less than 1 year", 
+    "not_employed", 
+    "employed")
+    )
+
+#find an unemployment ratio differences between different states
+unemployment_ratio_by_state <- active_age %>%
+  group_by(X_state) %>%
+  summarise(unemployed = sum(mark_unemployed == "not_employed") / n()) %>%
+  select(X_state, unemployed)
+
+#Sort states by unemployment rate(sorting requires data type change)
+unemployment_ratio_by_state_ordered = unemployment_ratio_by_state
+unemployment_ratio_by_state_ordered$unemployed <- as.numeric(as.character(unemployment_ratio_by_state_ordered$unemployed)) 
+unemployment_ratio_by_state_ordered<-unemployment_ratio_by_state_ordered[order(unemployment_ratio_by_state_ordered$unemployed),]
+
+```
+
+#### Designate 2 states categories in the ordered frame:
+
+#### 10 best - states with lowest unemployment rate
+
+#### 10 worst - states with highest unemployment rate
+
+```{r eval = TRUE}
+states_10_best    <- unemployment_ratio_by_state_ordered[1:10,]
+states_10_worst   <- unemployment_ratio_by_state_ordered[44:53,] 
+```
+
+#### Showing two charts:
+
+#### 1.  States with lowest unemployment rate
+
+#### 2.  States with highest unemployment rate
+
+```{r }
+ggplot(data = states_10_best, aes(x=unemployed, y=reorder(X_state,-unemployed) ,label=unemployed)) +  geom_bar(stat='identity') + labs(title="States with lowest unemployment rate") + xlim(0, 0.30)
+
+ggplot(data = states_10_worst, aes(x=unemployed, y=reorder(X_state,-unemployed) ,label=unemployed)) +  geom_bar(stat='identity') + labs(title="States with highest unemployment rate") + xlim(0, 0.30)
+
+```
+
+<br>
+The 2 plots above show 
+
+1. Unemployment rate in 10 states with the lowest unemployment
+2. Unemployment rate in 10 states with the highest unemployment
+
+
+
+#### Create 4 groups by disease (heart/stroke) and unemployment rate of the state (high/low):
+
+```{r eval = TRUE}
+#Separate population of best employment states
+best_empl_population <- subset(active_age, X_state %in% states_10_best$X_state)
+  
+#Separate population of worst employment states
+worst_empl_population <- subset(active_age, X_state %in% states_10_worst$X_state)
+
+#Separate heart attack population of best employment states 
+heart_attack_population_best <-best_empl_population %>%
+  filter(cvdinfr4=="Yes") 
+  
+#Separate stroke population of best employment states  
+stroke_population_best<-best_empl_population %>%
+  filter(cvdstrk3=="Yes") 
+
+#Separate heart attack population of worst employment states 
+heart_attack_population_worst <-worst_empl_population %>%
+  filter(cvdinfr4=="Yes") 
+  
+#Separate stroke population of worst employment states  
+stroke_population_worst<-worst_empl_population %>%
+  filter(cvdstrk3=="Yes") 
+
+```
+
+#### Displaying a comparative analysis of heart attack/stroke rate in:
+
+#### a)  high employment states
+
+#### b)  lower employment states
+
+```{r eval = TRUE}
+best_states_heart_attack_ratio      <- as.numeric(round(count(heart_attack_population_best) / count(best_empl_population),3))
+best_states_stroke_ratio            <- as.numeric(round(count(stroke_population_best) / count(best_empl_population),3))
+worst_states_heart_attack_ratio     <- as.numeric(round(count(heart_attack_population_worst) / count(worst_empl_population),3))
+worst_states_stroke_ratio           <- as.numeric(round(count(stroke_population_worst) / count(worst_empl_population),3))
+
+incidents_rates = c(best_states_heart_attack_ratio, worst_states_heart_attack_ratio, best_states_stroke_ratio, worst_states_stroke_ratio)
+
+incidents_rates_names = c('A. Best St. - Heart Attack', 'B. Worst St. - Heart Attack', 'C. Best St. - Stroke', 'D. Worst St. - Stroke')
+
+compare_states_accidents<- data.frame(incidents_rates, incidents_rates_names)
+
+ggplot(data = compare_states_accidents, aes(incidents_rates_names, incidents_rates, label=incidents_rates)) +  geom_bar(stat='identity') + labs(title="Abrupt Health Issues In States with best/worst employment") + geom_text(position=position_dodge(width=0.9), vjust=-0.25)
+
+```
+<br>
+The summary plot for EDA 2 above:
+It demonstrates how 10 best and 10 worst ('worst'/'best' by unemployment level) 
+states are different in heart attack and stroke rates in population.
+
+
+
+## Summary EDA 2:
+
+Comparing 10 states with the highest unemployment and 10 states with the lowest unemployment,
+
+found that heart / stroke issues are positively correlated with the unemployment ratio in states.
+
+This research supports the correlation found in the first research on the different level.
+
+
+## Research question 3:
+
+#### Q: What is the ratio of fully disabled to all unemployed in the states where unemployment is most/less pronounced?
+
+<br>
+
+#### Continue to explore best/worst states here
+
+#### But now the point is 'the complete inability to work'
+
+```{r eval = TRUE}
+#Adding disabled marking
+active_age <- active_age %>%
+  mutate(mark_disabled = ifelse(employ1=="Unable to work", 
+    "disabled", 
+    "not_disabled")
+    )
+
+```
+
+#### Separate populations of 'best'/'worst' states (Meaning: States with low/high unemployment rate respectively)
+
+```{r eval=TRUE}
+#Separate population of best employment states
+best_empl_population <- subset(active_age, X_state %in% states_10_best$X_state)
+
+#Separate population of worst employment states
+worst_empl_population <- subset(active_age, X_state %in% states_10_worst$X_state)
+
+```
+
+#### Now a series of calculations of disability level for 4 categories:
+
+#### 1.  Best state/Heart attack
+
+```{r eval=TRUE}
+#Find the ratio of disabled to all unemployed with the heart attack in the states with the best employment
+heart_attack_population_best <- best_empl_population %>%
+  filter(cvdinfr4=="Yes") 
+
+heart_attack_population_best_disabled <-heart_attack_population_best %>%
+  filter(mark_disabled=="disabled") 
+
+heart_attack_population_best_unemployed <-heart_attack_population_best %>%
+  filter(mark_unemployed=="not_employed")
+
+ratio_disabled_heart_best <-as.numeric(round(count(heart_attack_population_best_disabled) / count(heart_attack_population_best_unemployed),3))
+
+print(ratio_disabled_heart_best)
+```
+
+#### 2.  Worst state/Heart attack
+
+```{r eval=TRUE}
+#Find the ratio of disabled to all unemployed with the heart attack in the states with the worst employment
+heart_attack_population_worst <- worst_empl_population %>%
+  filter(cvdinfr4=="Yes") 
+
+heart_attack_population_worst_disabled <-heart_attack_population_worst %>%
+  filter(mark_disabled=="disabled") 
+
+heart_attack_population_worst_unemployed <-heart_attack_population_worst %>%
+  filter(mark_unemployed=="not_employed")
+
+ratio_disabled_heart_worst <-as.numeric(round(count(heart_attack_population_worst_disabled) / count(heart_attack_population_worst_unemployed),3))
+
+print(ratio_disabled_heart_worst)
+
+```
+
+#### 3.  Best state/stroke
+
+```{r eval=TRUE}
+#Find the ratio of disabled to all unemployed with the stroke in the states with the best employment
+stroke_population_best <- best_empl_population %>%
+  filter(cvdstrk3=="Yes") 
+
+stroke_population_best_disabled <-stroke_population_best %>%
+  filter(mark_disabled=="disabled") 
+
+stroke_population_best_unemployed <-stroke_population_best %>%
+  filter(mark_unemployed=="not_employed")
+
+ratio_disabled_stroke_best <-as.numeric(round(count(stroke_population_best_disabled) / count(stroke_population_best_unemployed),3))
+
+print(ratio_disabled_stroke_best)
+```
+
+#### 3.  Worst state/stroke
+
+```{r eval=TRUE}
+#Find the ratio of disabled to all unemployed with the stroke in the states with the worst employment
+stroke_population_worst <- worst_empl_population %>%
+  filter(cvdstrk3=="Yes") 
+
+stroke_population_worst_disabled <-stroke_population_worst %>%
+  filter(mark_disabled=="disabled") 
+
+stroke_population_worst_unemployed <-stroke_population_worst %>%
+  filter(mark_unemployed=="not_employed")
+
+ratio_disabled_stroke_worst <-as.numeric(round(count(stroke_population_worst_disabled) / count(stroke_population_worst_unemployed),3))
+
+print(ratio_disabled_stroke_worst)
+```
+
+#### Demonstrate in the graph how ratio of disabled to unemployed correlates with the
+
+#### unemployment rate in the States with best / worst employment
+
+```{r eval=TRUE}
+disabled_rates = c(ratio_disabled_heart_best, ratio_disabled_heart_worst, ratio_disabled_stroke_best, ratio_disabled_stroke_worst)
+
+disabled_rates_names = c('A. Best (Heart) disabled', 'B. Worst (Heart) disabled', 'C. Best (Stroke) disabled', 'D. Worst (Stroke) disabled')
+
+compare_states_accidents<- data.frame(disabled_rates, disabled_rates_names)
+
+ggplot(data = compare_states_accidents, aes(disabled_rates_names, disabled_rates, label=disabled_rates)) +  geom_bar(stat='identity') + labs(title="Disabled to Uneployed Ratio in Best/Worst States (Heart Attack/Stroke)") + geom_text(position=position_dodge(width=0.9), vjust=-0.25)
+
+
+```
+<br>
+The summary for EDA 3 plot above: it demonstrates that disability ration is correlated
+with the unemployment level, when compared 10 states with the highest unemployment 
+and 10 states with the lowest unemployment.
+
+
+## Summary EDA 3:
+
+It is visible that in states with higher unemployment ("Worst States") ratio of disabled
+
+to unemployed is higher,
+
+considering two population groups: a group suffered heart attack and a group suffered stroke.
+
+For example (1):
+
+In Best States(States with lower unemployment):
+
+Those who suffered heart attack have 0.76 disabled rate
+
+In Worst States(States with higher unemployment):
+
+Those who suffered heart attack have 0.86 disabled rate
+
+For example (2):
+
+In Best States(States with lower unemployment):
+
+Those who suffered stroke have 0.8 disabled rate
+
+In Worst States(States with higher unemployment):
+
+Those who suffered stroke have 0.89 disabled rate
+
+## Overall summary:
+
+#### It is better to be employed and healthy and to live in a 'best state' :)
+
+#### One affects the other - which one, which other - is not clear, but they are correlated.
+
+#### That I wish you, my dear reviewer:
+
+#### great health and superb employment :) !
