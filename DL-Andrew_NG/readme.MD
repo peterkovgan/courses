@@ -29,3 +29,4 @@ Mini-batch GD, Weighted/Exponentially averages, Momentum, ADAM, RMSprop
 
 Week 3:
 
+HP Tuning, Batch Norm, Multiclass classification (softmax), Starting Tensorflow
