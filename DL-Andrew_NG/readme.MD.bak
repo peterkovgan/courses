@@ -16,6 +16,9 @@ Week 4:
 
 Deep NN, L layers
 
+
+888888888888888888888888888888888888888888888888
+
 Course 2: DL optimisation and HP tuning
 
 Week 1:
@@ -30,3 +33,51 @@ Mini-batch GD, Weighted/Exponentially averages, Momentum, ADAM, RMSprop
 Week 3:
 
 HP Tuning, Batch Norm, Multiclass classification (softmax), Starting Tensorflow
+
+
+888888888888888888888888888888888888888888888888
+Course 3: Structuring ML Projects
+
+Week 1:
+
+Evaluation metrics, Train/Dev/Test sets
+
+Avoidable bias
+
+Surpassing human level performance
+
+
+Week 2:
+
+Error analysis
+
+Bias and Variance, mismatched data distributions
+
+Transfer and multitask learning
+
+End-to-end learning
+
+
+
+
+888888888888888888888888888888888888888888888888
+
+Course 4: Convolution NN
+
+Week 1:
+
+Edge detection, Padding, Stride; Conv, Pooling, FC layers
+
+Practical: Conv model step by step (in numpy)
+
+Practical: Conv model simple with Keras/TF
+
+Week 2:
+
+Classic nets, ResNets, Inception, 1x1 Convs, MobileNet2, EfficientNet
+
+Practical: 
+
+ResNet with Keras/TF
+
+TransferLearning with small data amount (Keras)
