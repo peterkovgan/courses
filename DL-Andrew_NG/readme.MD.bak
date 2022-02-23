@@ -81,3 +81,13 @@ Practical:
 ResNet with Keras/TF
 
 TransferLearning with small data amount (Keras)
+
+Week 3:
+
+Detection, localizataion, sliding windows, non max supression, anchor boxes, 
+
+YOLO, 
+
+Semantic segmentation with U-Net
+
+

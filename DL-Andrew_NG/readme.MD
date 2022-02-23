@@ -90,4 +90,20 @@ YOLO,
 
 Semantic segmentation with U-Net
 
+Week 4:
+
+Face recognition
+
+One Shot Learning
+
+Siamese
+
+Triplet Loss
+
+Face Verification and Binary classification
+
+Neural Style Transfer
+
+
+
 
